@@ -8,7 +8,7 @@ int distance(int size, int path[size], int matrix[size][size])
     {
 
         int curr = path[i] - 1;
-        int next = path[i + 1];
+        int next = path[i + 1] - 1;
         dist += matrix[curr][next];
     }
 
@@ -33,5 +33,8 @@ int main()
 
     int path[] = {5, 4, 2, 1, 3};
 
-    int dist = distance(size, )
+    int dist = distance(size, path, matrix);
+
+	printf("\nDistance: %d\n\n", dist);
+return 0;
 }
