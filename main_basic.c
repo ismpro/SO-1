@@ -9,12 +9,6 @@
 
 #define MILHAO 1000000L;
 
-int *path;
-int *pids;
-int *best_path;
-int size;
-int num_proc;
-
 int distance(int size, int path[size], int matrix[size][size])
 {
 	int dist = 0;
@@ -58,30 +52,6 @@ void shuffle(int *array, size_t n)
 	}
 }
 
-void parent_callback(int signal)
-{
-	printf("Best Path Found -");
-	for (int i = 0; i < size; i++)
-	{
-		printf(" %d ", best_path[i]);
-	}
-	fflush(stdout);
-	for (int i = 0; i < num_proc; i++)
-	{
-		kill(pids[i], SIGUSR2);
-	}
-	return;
-}
-
-void child_callback(int signal)
-{
-	for (int z = 0; z < size; z++)
-	{
-		path[z] = best_path[z];
-	}
-	return;
-}
-
 int main(int argc, char *argv[])
 {
 
@@ -90,14 +60,13 @@ int main(int argc, char *argv[])
 		return (EXIT_FAILURE);
 	}
 
-	num_proc = atoi(argv[1]);
+	int num_proc = atoi(argv[1]);
 	int max_time = atoi(argv[2]);
 	struct timespec begin;
 
 	clock_gettime(CLOCK_REALTIME, &begin);
 
-	size = 5;
-
+	int size = 5;
 	int matrix[5][5] = {
 		{0, 23, 10, 4, 1},
 		{23, 0, 9, 5, 4},
@@ -106,9 +75,7 @@ int main(int argc, char *argv[])
 		{1, 4, 2, 11, 0},
 	};
 
-	pids = (int *)malloc(sizeof(int) * num_proc);
-
-	path = (int *)malloc(sizeof(int) * size);
+	int path[size];
 	for (int i = 0; i < size; i++)
 	{
 		path[i] = i + 1;
@@ -121,14 +88,14 @@ int main(int argc, char *argv[])
 	int visibility = MAP_ANONYMOUS | MAP_SHARED;
 
 	int *best_dist = mmap(NULL, sizeof(int), protection, visibility, 0, 0);
-	best_path = mmap(NULL, sizeof(int) * 5, protection, visibility, 0, 0);
+	int *best_path = mmap(NULL, sizeof(int) * 5, protection, visibility, 0, 0);
 	long *it = mmap(NULL, sizeof(long), protection, visibility, 0, 0);
 	double *best_time = mmap(NULL, sizeof(double), protection, visibility, 0, 0);
 	long *best_it = mmap(NULL, sizeof(long), protection, visibility, 0, 0);
 
 	*best_dist = 99999;
 
-	signal(SIGUSR1, parent_callback);
+	int pids[num_proc];
 
 	for (int i = 0; i < num_proc; i++)
 	{
@@ -136,7 +103,6 @@ int main(int argc, char *argv[])
 		if (pids[i] == 0)
 		{
 			printf("Worker process #%d!\n", i + 1);
-			signal(SIGUSR2, child_callback);
 			struct timespec randNum;
 			clock_gettime(CLOCK_REALTIME, &randNum);
 			srand(randNum.tv_nsec);
@@ -159,7 +125,6 @@ int main(int argc, char *argv[])
 					{
 						best_path[z] = path[z];
 					}
-					kill(getppid(), SIGUSR1);
 				}
 				sem_post(access_mem);
 			}
@@ -167,13 +132,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	while (time(NULL) - begin.tv_sec < max_time)
-		;
+	sleep(max_time);
 
 	// Kill worker processes
-	printf("\n\nKilling Workers \n");
 	for (int i = 0; i < num_proc; i++)
 	{
+		printf("Killing Worker %d\n", i + 1);
 		kill(pids[i], SIGKILL);
 	}
 
@@ -189,8 +153,6 @@ int main(int argc, char *argv[])
 
 	printf("\n\nBest Time: %.2f ms\n\n", *best_time);
 
-	free(path);
-	free(pids);
 	sem_close(access_mem);
 
 	return 0;

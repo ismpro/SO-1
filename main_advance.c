@@ -96,6 +96,8 @@ int main(int argc, char *argv[])
 
 	clock_gettime(CLOCK_REALTIME, &begin);
 
+	printf("%d %d\n\n\n\n", num_proc, max_time);
+
 	size = 5;
 
 	int matrix[5][5] = {

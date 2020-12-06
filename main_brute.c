@@ -5,6 +5,8 @@
 #include <string.h>
 #include <sys/mman.h>
 
+#define MILHAO 1000000L;
+
 int distance(int size, int path[size], int matrix[size][size])
 {
 	int dist = 0;
@@ -59,8 +61,9 @@ int main(int argc, char *argv[])
 		return (EXIT_FAILURE);
 	}
 
-	int max_time = atoi(argv[2]);
-	long begin = time(&seconds);
+	int max_time = atoi(argv[1]);
+	struct timespec begin;
+	clock_gettime(CLOCK_REALTIME, &begin);
 
 	int size = 5;
 	int matrix[5][5] = {
@@ -84,14 +87,23 @@ int main(int argc, char *argv[])
 
 	shuffle(path, size);
 	int bestDist = 9999999;
+	long it = 0;
+	long bestIt = 0;
+	double bestTime;
 
-	while (begin + max_time < time(&seconds))
+	while (time(&seconds) - begin.tv_sec < max_time)
 	{
 		swap(size, path);
 		int dist = distance(size, path, matrix);
+		it = it + 1;
 		if (dist < bestDist)
 		{
+			struct timespec timer;
+			clock_gettime(CLOCK_REALTIME, &timer);
 			bestDist = dist;
+			bestIt = it;
+			bestTime = (timer.tv_sec - begin.tv_sec) +
+					   (double)(timer.tv_nsec - begin.tv_nsec) / (double)MILHAO;
 			for (int z = 0; z < size; z++)
 			{
 				bestPath[z] = path[z];
@@ -104,6 +116,10 @@ int main(int argc, char *argv[])
 	{
 		printf(" %d ", bestPath[i]);
 	}
-	printf("\n\n");
+	printf("\n\nIterations: %ld", it);
+
+	printf("\n\nBest Iteration: %ld", bestIt);
+
+	printf("\n\nBest Time: %.2f ms\n\n", bestTime);
 	return 0;
 }
