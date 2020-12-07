@@ -12,8 +12,14 @@
 int *path;
 int *pids;
 int *best_path;
+int *best_dist;
+long *it;
+long *best_it;
+int work;
 int size;
+int workStatus;
 int num_proc;
+int lastIt;
 
 int distance(int size, int path[size], int matrix[size][size])
 {
@@ -66,6 +72,7 @@ void parent_callback(int signal)
 		printf(" %d ", best_path[i]);
 	}
 	fflush(stdout);
+	lastIt = *best_it;
 	for (int i = 0; i < num_proc; i++)
 	{
 		kill(pids[i], SIGUSR2);
@@ -82,21 +89,31 @@ void child_callback(int signal)
 	return;
 }
 
+void stop_worker(int signal)
+{
+	work = 0;
+}
+
 int main(int argc, char *argv[])
 {
 
-	if (argc != 3)
+	if (argc != 4)
 	{
+		printf("Aborting due to lack of arguments");
 		return (EXIT_FAILURE);
 	}
 
+	work = 1;
+	workStatus = 0;
 	num_proc = atoi(argv[1]);
 	int max_time = atoi(argv[2]);
+	int threshold = atoi(argv[3]);
 	struct timespec begin;
 
 	clock_gettime(CLOCK_REALTIME, &begin);
 
 	size = 5;
+	lastIt = 0;
 
 	int matrix[5][5] = {
 		{0, 23, 10, 4, 1},
@@ -120,11 +137,11 @@ int main(int argc, char *argv[])
 	int protection = PROT_READ | PROT_WRITE;
 	int visibility = MAP_ANONYMOUS | MAP_SHARED;
 
-	int *best_dist = mmap(NULL, sizeof(int), protection, visibility, 0, 0);
+	best_dist = mmap(NULL, sizeof(int), protection, visibility, 0, 0);
 	best_path = mmap(NULL, sizeof(int) * 5, protection, visibility, 0, 0);
-	long *it = mmap(NULL, sizeof(long), protection, visibility, 0, 0);
+	it = mmap(NULL, sizeof(long), protection, visibility, 0, 0);
 	double *best_time = mmap(NULL, sizeof(double), protection, visibility, 0, 0);
-	long *best_it = mmap(NULL, sizeof(long), protection, visibility, 0, 0);
+	best_it = mmap(NULL, sizeof(long), protection, visibility, 0, 0);
 
 	*best_dist = 99999;
 
@@ -135,13 +152,13 @@ int main(int argc, char *argv[])
 		pids[i] = fork();
 		if (pids[i] == 0)
 		{
-			printf("Worker process #%d!\n", i + 1);
 			signal(SIGUSR2, child_callback);
+			signal(SIGINT, stop_worker);
 			struct timespec randNum;
 			clock_gettime(CLOCK_REALTIME, &randNum);
 			srand(randNum.tv_nsec);
 			shuffle(path, size);
-			while (1)
+			while (work == 1)
 			{
 				swap(size, path);
 				int dist = distance(size, path, matrix);
@@ -167,8 +184,22 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	while (time(NULL) - begin.tv_sec < max_time)
-		;
+	if (threshold = 0)
+	{
+		while (time(NULL) - begin.tv_sec < max_time)
+			;
+	}
+	else
+	{
+		while (time(NULL) - begin.tv_sec < max_time)
+		{
+			if (*it - lastIt >= threshold)
+			{
+				printf("\n\nKilling process due hiting threshold");
+				break;
+			}
+		}
+	}
 
 	// Kill worker processes
 	printf("\n\nKilling Workers \n");
