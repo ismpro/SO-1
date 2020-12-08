@@ -8,6 +8,7 @@
 #include <signal.h>
 
 #define MILHAO 1000000L;
+#define SHUFFLETIMES 3;
 
 int *path;
 int *pids;
@@ -15,11 +16,11 @@ int *best_path;
 int *best_dist;
 long *it;
 long *best_it;
-int work;
 int size;
 int workStatus;
 int num_proc;
-int lastIt;
+int hitThreshold;
+sem_t *access_mem;
 
 int distance(int size, int path[size], int matrix[size][size])
 {
@@ -66,17 +67,12 @@ void shuffle(int *array, size_t n)
 
 void parent_callback(int signal)
 {
-	printf("Best Path Found -");
-	for (int i = 0; i < size; i++)
-	{
-		printf(" %d ", best_path[i]);
-	}
-	fflush(stdout);
-	lastIt = *best_it;
+	hitThreshold = 0;
 	for (int i = 0; i < num_proc; i++)
 	{
 		kill(pids[i], SIGUSR2);
 	}
+	sem_post(access_mem);
 	return;
 }
 
@@ -89,31 +85,43 @@ void child_callback(int signal)
 	return;
 }
 
-void stop_worker(int signal)
+void order_shuffle(int signal)
 {
-	work = 0;
+	for (int i = 0; i < SHUFFLETIMES i++)
+	{
+		shuffle(path, size);
+	}
+	return;
 }
 
 int main(int argc, char *argv[])
 {
 
-	if (argc != 4)
+	//Processamento de agurmentos
+	int threshold; //[OPCIONAL] -
+
+	if (argc <= 3 && argc >= 4)
 	{
-		printf("Aborting due to lack of arguments");
+		printf("Aborting due to lack of arguments\n");
 		return (EXIT_FAILURE);
 	}
+	if (argc == 3)
+	{
+		threshold = 0;
+	}
+	else
+	{
+		threshold = atoi(argv[3]);
+	}
+	num_proc = atoi(argv[1]);	  //[OBRIGATORIO] - Numero de processos filhos
+	int max_time = atoi(argv[2]); //[OBRIGATORIO] - Tempo maximo de execusão
 
-	work = 1;
-	workStatus = 0;
-	num_proc = atoi(argv[1]);
-	int max_time = atoi(argv[2]);
-	int threshold = atoi(argv[3]);
-	struct timespec begin;
+	//Declaração de algumas variaveis
+	hitThreshold = 0;
 
-	clock_gettime(CLOCK_REALTIME, &begin);
-
+	//Para tirar depois de ter os ficheiros
+	/*+------------------------------+*/
 	size = 5;
-	lastIt = 0;
 
 	int matrix[5][5] = {
 		{0, 23, 10, 4, 1},
@@ -122,7 +130,7 @@ int main(int argc, char *argv[])
 		{4, 5, 8, 0, 11},
 		{1, 4, 2, 11, 0},
 	};
-
+	/*+------------------------------+*/
 	pids = (int *)malloc(sizeof(int) * num_proc);
 
 	path = (int *)malloc(sizeof(int) * size);
@@ -131,9 +139,15 @@ int main(int argc, char *argv[])
 		path[i] = i + 1;
 	}
 
-	sem_unlink("access_mem");
-	sem_t *access_mem = sem_open("access_mem", O_CREAT, 0644, 1);
+	struct timespec begin, timer, randNum;
+	clock_gettime(CLOCK_REALTIME, &begin);
+	signal(SIGUSR1, parent_callback);
 
+	//Declaração de semaforos
+	sem_unlink("access_mem");
+	access_mem = sem_open("access_mem", O_CREAT, 0644, 1);
+
+	//Declaração de memoria patrilhada
 	int protection = PROT_READ | PROT_WRITE;
 	int visibility = MAP_ANONYMOUS | MAP_SHARED;
 
@@ -145,20 +159,17 @@ int main(int argc, char *argv[])
 
 	*best_dist = 99999;
 
-	signal(SIGUSR1, parent_callback);
-
 	for (int i = 0; i < num_proc; i++)
 	{
 		pids[i] = fork();
 		if (pids[i] == 0)
 		{
 			signal(SIGUSR2, child_callback);
-			signal(SIGINT, stop_worker);
-			struct timespec randNum;
+			signal(SIGINT, order_shuffle);
 			clock_gettime(CLOCK_REALTIME, &randNum);
 			srand(randNum.tv_nsec);
 			shuffle(path, size);
-			while (work == 1)
+			while (1)
 			{
 				swap(size, path);
 				int dist = distance(size, path, matrix);
@@ -166,7 +177,6 @@ int main(int argc, char *argv[])
 				*it = *it + 1;
 				if (dist < *best_dist)
 				{
-					struct timespec timer;
 					clock_gettime(CLOCK_REALTIME, &timer);
 					*best_dist = dist;
 					*best_it = *it;
@@ -178,36 +188,43 @@ int main(int argc, char *argv[])
 					}
 					kill(getppid(), SIGUSR1);
 				}
-				sem_post(access_mem);
+				else
+				{
+					sem_post(access_mem);
+				}
 			}
 			exit(0);
 		}
 	}
 
-	if (threshold = 0)
+	//Program LOOP
+	while (time(NULL) - begin.tv_sec < max_time)
 	{
-		while (time(NULL) - begin.tv_sec < max_time)
-			;
-	}
-	else
-	{
-		while (time(NULL) - begin.tv_sec < max_time)
+		if (threshold != 0 && *it - *best_it >= threshold)
 		{
-			if (*it - lastIt >= threshold)
+			hitThreshold++;
+			if (hitThreshold <= 3)
 			{
-				printf("\n\nKilling process due hiting threshold");
+				printf("\n\nKilling process due hiting 3 times the threshold\n\n");
 				break;
+			}
+			else
+			{
+				for (int i = 0; i < num_proc; i++)
+				{
+					kill(pids[i], SIGINT);
+				}
 			}
 		}
 	}
 
 	// Kill worker processes
-	printf("\n\nKilling Workers \n");
 	for (int i = 0; i < num_proc; i++)
 	{
 		kill(pids[i], SIGKILL);
 	}
 
+	//Tabela de Resultados
 	printf("\nDistance: %d\n\n", *best_dist);
 	printf("Best Path -");
 	for (int i = 0; i < size; i++)
@@ -220,9 +237,10 @@ int main(int argc, char *argv[])
 
 	printf("\n\nBest Time: %.2f ms\n\n", *best_time);
 
+	//Libertar memoria e fechar semaforo
 	free(path);
 	free(pids);
 	sem_close(access_mem);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
