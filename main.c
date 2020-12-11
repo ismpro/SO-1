@@ -6,9 +6,11 @@
 #include <semaphore.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <string.h>
 
 #define MILHAO 1000000L;
 #define SHUFFLETIMES 3;
+
 
 int *path;
 int *pids;
@@ -39,6 +41,14 @@ int distance(int size, int path[size], int matrix[size][size])
 	dist += matrix[last][first];
 
 	return dist;
+}
+
+void trim(char* string) {
+  int i, j;
+  for(i=j=0; string[i]; ++i)
+    if(!isspace(string[i]) || (i > 0 && !isspace(string[i-1])))
+      string[j++] = string[i];
+  string[j] = '\0';
 }
 
 void swap(int size, int path[size])
@@ -119,18 +129,49 @@ int main(int argc, char *argv[])
 	//Declaração de algumas variaveis
 	hitThreshold = 0;
 
-	//Para tirar depois de ter os ficheiros
-	/*+------------------------------+*/
-	size = 5;
+	int firstRow = 1;
+	int matrix[5][5];	
 
-	int matrix[5][5] = {
-		{0, 23, 10, 4, 1},
-		{23, 0, 9, 5, 4},
-		{10, 9, 0, 8, 2},
-		{4, 5, 8, 0, 11},
-		{1, 4, 2, 11, 0},
-	};
-	/*+------------------------------+*/
+	FILE *file;
+	char string[1000];
+
+	file = fopen("ex4.txt", "r");
+	if (file == NULL) {
+        	printf("Could not open file %s", "ex4.txt");
+        	return 1;
+    	}
+
+	int line = 0;
+    	while (fgets(string, 1000, file) != NULL) {
+		if (firstRow) {
+			size = atoi(string);
+			matrix[size][size];
+			firstRow = 0;
+		} else {
+			trim(string);
+			printf("%s", string);
+			int col = 0;
+			for (int i = 0; string[i] != '\0'; i++) {
+				int z = 0;
+				for (int j = i; string[j] != ' ' && string[j] != '\0'; j++) {
+					z = z + 1;
+				}
+				char number[z];
+				int y = i;
+				for (int x = 0; x < z; x++) {
+					number[x] = string[y];
+					y = y + 1;
+				}
+				matrix[line][col] = atoi(number);
+				col = col + 1;
+				
+				i = i + z;
+			}
+		}
+		line = line + 1;
+	}
+    	fclose(file);
+
 	pids = (int *)malloc(sizeof(int) * num_proc);
 
 	path = (int *)malloc(sizeof(int) * size);
