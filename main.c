@@ -1,3 +1,13 @@
+/*
+*	Versão Basica
+*	Argumentos:
+*	1 - Nome do ficheiro
+*	2 - Numero de processos
+*	3 - Tempo Total de execução
+*   4 - [Opticional] Limite para iteração sem encontrar um melhor caminho
+*
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -20,6 +30,7 @@ int size;
 int num_proc;
 int hitThreshold;
 
+//Calcular distancias apartir de uma matriz
 int distance(int size, int path[size], int matrix[size][size])
 {
 	int dist = 0;
@@ -39,6 +50,7 @@ int distance(int size, int path[size], int matrix[size][size])
 	return dist;
 }
 
+//Retirar espaços extras de strings
 void trim(char *string)
 {
 	int i, j;
@@ -48,6 +60,7 @@ void trim(char *string)
 	string[j] = '\0';
 }
 
+//Criar um loading bar na consola
 void print_progress(size_t count, size_t max)
 {
 	const char prefix[] = "Progress: [";
@@ -69,6 +82,7 @@ void print_progress(size_t count, size_t max)
 	free(buffer);
 }
 
+//Trocar aleatoriamente dois posições do array
 void swap(int size, int path[size])
 {
 	int a = rand() % size;
@@ -78,6 +92,7 @@ void swap(int size, int path[size])
 	path[b] = tmp;
 }
 
+//Baralhar aleatoriamente os arrays
 void shuffle(int *array, int n)
 {
 	if (n > 1)
@@ -93,6 +108,8 @@ void shuffle(int *array, int n)
 	}
 }
 
+//Sinal do processo filho para o pai para informar
+// que foi encontrado um melhor caminho
 void parent_callback(int signal)
 {
 	hitThreshold = 0;
@@ -103,6 +120,7 @@ void parent_callback(int signal)
 	return;
 }
 
+//Sinal do processo pai para filhos para alterarem o path para o melhor path
 void child_callback(int signal)
 {
 	for (int z = 0; z < size; z++)
@@ -112,6 +130,7 @@ void child_callback(int signal)
 	return;
 }
 
+//Sinal do processo pai para filhos para dar shuffle ao path
 void order_shuffle(int signal)
 {
 	shuffle(path, size);
@@ -137,8 +156,8 @@ int main(int argc, char *argv[])
 	{
 		threshold = atoi(argv[4]);
 	}
-	char pathFile[] = "tests/"; //[OBRIGATORIO] - Nome do Ficheiro
-	strcat(pathFile, argv[1]);
+	char pathFile[] = "tests/";
+	strcat(pathFile, argv[1]); //[OBRIGATORIO] - Nome do Ficheiro
 	strcat(pathFile, ".txt");
 	num_proc = atoi(argv[2]);	  //[OBRIGATORIO] - Numero de processos filhos
 	int max_time = atoi(argv[3]); //[OBRIGATORIO] - Tempo maximo de execusão
@@ -148,9 +167,7 @@ int main(int argc, char *argv[])
 	clock_gettime(CLOCK_REALTIME, &begin);
 	signal(SIGUSR1, parent_callback);
 
-	//Declaração de algumas variaveis
-	hitThreshold = 0;
-
+	//Leitura dos ficheiros para a criação de variaveis
 	FILE *file;
 	char string[1000];
 
@@ -167,10 +184,8 @@ int main(int argc, char *argv[])
 	int line = 0;
 	while (fgets(string, 1000, file) != NULL)
 	{
-
 		trim(string);
 
-		//https://www.tutorialspoint.com/c_standard_library/c_function_strtok.htm
 		char s[2] = " ";
 		char *token;
 		int col = 0;
@@ -189,6 +204,8 @@ int main(int argc, char *argv[])
 	}
 	fclose(file);
 
+	//Declaração de algumas variaveis
+	hitThreshold = 0;
 	pids = (int *)malloc(sizeof(int) * num_proc);
 
 	path = (int *)malloc(sizeof(int) * size);
@@ -215,6 +232,11 @@ int main(int argc, char *argv[])
 
 	for (int i = 0; i < num_proc; i++)
 	{
+		/* 
+		* Codigo de execução dos filhos
+		* Calcula a distancia e verifica se já encontrada uma melhor
+		* Se encontrou informa o pai dessa alteração
+		*/
 		pids[i] = fork();
 		if (pids[i] == 0)
 		{
@@ -249,9 +271,6 @@ int main(int argc, char *argv[])
 	}
 
 	double ttime;
-	double lastTime = 0;
-	long ms;  // Milliseconds
-	time_t s; // Seconds
 
 	//Program LOOP
 	while (time(NULL) - begin.tv_sec < max_time)

@@ -1,9 +1,11 @@
-/***********************************************************
- * 
- * Este ficheiro pode não estar a funcionar como
- * deve ser
- * 
- **********************************************************/
+/*
+*	Versão Basica
+*	Argumentos:
+*	1 - Nome do ficheiro
+*	2 - Numero de processos
+*	3 - Tempo Total de execução
+*
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +15,8 @@
 #include <semaphore.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <ctype.h>
+#include <string.h>
 
 #define MILHAO 1000000L;
 
@@ -22,6 +26,7 @@ int *best_path;
 int size;
 int num_proc;
 
+//Calcular distancias apartir de uma matriz
 int distance(int size, int path[size], int matrix[size][size])
 {
 	int dist = 0;
@@ -41,6 +46,7 @@ int distance(int size, int path[size], int matrix[size][size])
 	return dist;
 }
 
+//Retirar espaços extras de strings
 void trim(char *string)
 {
 	int i, j;
@@ -50,6 +56,7 @@ void trim(char *string)
 	string[j] = '\0';
 }
 
+//Trocar aleatoriamente dois posições do array
 void swap(int size, int path[size])
 {
 	int a = rand() % size;
@@ -59,6 +66,7 @@ void swap(int size, int path[size])
 	path[b] = tmp;
 }
 
+//Baralhar aleatoriamente os arrays
 void shuffle(int *array, size_t n)
 {
 	if (n > 1)
@@ -74,14 +82,10 @@ void shuffle(int *array, size_t n)
 	}
 }
 
+//Sinal do processo filho para o pai para informar
+// que foi encontrado um melhor caminho
 void parent_callback(int signal)
 {
-	printf("Best Path Found -");
-	for (int i = 0; i < size; i++)
-	{
-		printf(" %d ", best_path[i]);
-	}
-	fflush(stdout);
 	for (int i = 0; i < num_proc; i++)
 	{
 		kill(pids[i], SIGUSR2);
@@ -89,6 +93,7 @@ void parent_callback(int signal)
 	return;
 }
 
+//Sinal do processo pai para filhos para alterarem o path para o melhor path
 void child_callback(int signal)
 {
 	for (int z = 0; z < size; z++)
@@ -100,25 +105,24 @@ void child_callback(int signal)
 
 int main(int argc, char *argv[])
 {
-
-	if (argc != 3)
+	//Processamento de agurmentos
+	if (argc != 4)
 	{
+		printf("Aborting due to lack of arguments\n");
 		return (EXIT_FAILURE);
 	}
 
 	char pathFile[] = "tests/"; //[OBRIGATORIO] - Nome do Ficheiro
 	strcat(pathFile, argv[1]);
+	strcat(pathFile, ".txt");
 	num_proc = atoi(argv[2]);	  //[OBRIGATORIO] - Numero de processos filhos
 	int max_time = atoi(argv[3]); //[OBRIGATORIO] - Tempo maximo de execusão
 
-	struct timespec begin;
+	//Começo do tempo
+	struct timespec begin, timer, final, randNum;
 	clock_gettime(CLOCK_REALTIME, &begin);
 
-	printf("%d %d\n\n\n\n", num_proc, max_time);
-
-	int firstRow = 1;
-	int matrix[5][5];
-
+	//Leitura dos ficheiros para a criação de variaveis
 	FILE *file;
 	char string[1000];
 
@@ -129,44 +133,34 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	size = atoi(fgets(string, 1000, file));
+	int matrix[size][size];
+
 	int line = 0;
 	while (fgets(string, 1000, file) != NULL)
 	{
-		if (firstRow)
-		{
-			size = atoi(string);
-			matrix[size][size];
-			firstRow = 0;
-		}
-		else
-		{
-			trim(string);
-			printf("%s", string);
-			int col = 0;
-			for (int i = 0; string[i] != '\0'; i++)
-			{
-				int z = 0;
-				for (int j = i; string[j] != ' ' && string[j] != '\0'; j++)
-				{
-					z = z + 1;
-				}
-				char number[z];
-				int y = i;
-				for (int x = 0; x < z; x++)
-				{
-					number[x] = string[y];
-					y = y + 1;
-				}
-				matrix[line][col] = atoi(number);
-				col = col + 1;
 
-				i = i + z;
-			}
+		trim(string);
+
+		char s[2] = " ";
+		char *token;
+		int col = 0;
+
+		/* get the first token */
+		token = strtok(string, s);
+
+		/* walk through other tokens */
+		while (token != NULL)
+		{
+			matrix[line][col] = atoi(token);
+			token = strtok(NULL, s);
+			col = col + 1;
 		}
 		line = line + 1;
 	}
 	fclose(file);
 
+	//Declaração de algumas variaveis
 	pids = (int *)malloc(sizeof(int) * num_proc);
 
 	path = (int *)malloc(sizeof(int) * size);
@@ -175,9 +169,11 @@ int main(int argc, char *argv[])
 		path[i] = i + 1;
 	}
 
+	//Declaração de semaforos
 	sem_unlink("access_mem");
 	sem_t *access_mem = sem_open("access_mem", O_CREAT, 0644, 1);
 
+	//Declaração de memoria patrilhada
 	int protection = PROT_READ | PROT_WRITE;
 	int visibility = MAP_ANONYMOUS | MAP_SHARED;
 
@@ -193,15 +189,19 @@ int main(int argc, char *argv[])
 
 	for (int i = 0; i < num_proc; i++)
 	{
+		/* 
+		* Codigo de execução dos filhos
+		* Calcula a distancia e verifica se já encontrada uma melhor
+		* Se encontrou informa o pai dessa alteração
+		*/
 		pids[i] = fork();
 		if (pids[i] == 0)
 		{
-			printf("Worker process #%d!\n", i + 1);
 			signal(SIGUSR2, child_callback);
-			struct timespec randNum;
 			clock_gettime(CLOCK_REALTIME, &randNum);
 			srand(randNum.tv_nsec);
 			shuffle(path, size);
+
 			while (1)
 			{
 				swap(size, path);
@@ -210,11 +210,10 @@ int main(int argc, char *argv[])
 				*it = *it + 1;
 				if (dist < *best_dist)
 				{
-					struct timespec timer;
 					clock_gettime(CLOCK_REALTIME, &timer);
 					*best_dist = dist;
 					*best_it = *it;
-					*best_time = (timer.tv_sec - begin.tv_sec) +
+					*best_time = ((timer.tv_sec - begin.tv_sec) * 1000) +
 								 (double)(timer.tv_nsec - begin.tv_nsec) / (double)MILHAO;
 					for (int z = 0; z < size; z++)
 					{
@@ -232,12 +231,17 @@ int main(int argc, char *argv[])
 		;
 
 	// Kill worker processes
-	printf("\n\nKilling Workers \n");
 	for (int i = 0; i < num_proc; i++)
 	{
 		kill(pids[i], SIGKILL);
 	}
 
+	clock_gettime(CLOCK_REALTIME, &final);
+	double ttime = ((final.tv_sec - begin.tv_sec) * 1000) +
+				   (double)(final.tv_nsec - begin.tv_nsec) / (double)MILHAO;
+
+	//Tabela de Resultados
+	printf("\n------------------Table------------------\n\n");
 	printf("\nDistance: %d\n\n", *best_dist);
 	printf("Best Path -");
 	for (int i = 0; i < size; i++)
@@ -248,7 +252,10 @@ int main(int argc, char *argv[])
 
 	printf("\n\nBest Iteration: %ld", *best_it);
 
-	printf("\n\nBest Time: %.2f ms\n\n", *best_time);
+	printf("\n\nTotal Time: %.1f ms", ttime);
+
+	printf("\n\nBest Time: %.1f ms\n\n", *best_time);
+	printf("\n\n-----------------------------------------\n\n");
 
 	free(path);
 	free(pids);

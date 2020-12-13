@@ -1,20 +1,22 @@
-/***********************************************************
- * 
- * Este ficheiro pode não estar a funcionar como
- * deve ser
- * 
- **********************************************************/
+/*
+*	Versão força bruta
+*	Argumentos:
+*	1 - Nome do ficheiro
+*	2 - Tempo Total de execução
+*
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/mman.h>
 
 #define MILHAO 1000000L;
 
-int size;
-
+//Calcular distancias apartir de uma matriz
 int distance(int size, int path[size], int matrix[size][size])
 {
 	int dist = 0;
@@ -34,6 +36,7 @@ int distance(int size, int path[size], int matrix[size][size])
 	return dist;
 }
 
+//Retirar espaços extras de strings
 void trim(char *string)
 {
 	int i, j;
@@ -43,6 +46,7 @@ void trim(char *string)
 	string[j] = '\0';
 }
 
+//Trocar aleatoriamente dois posições do array
 void swap(int size, int path[size])
 {
 	int a = rand() % size;
@@ -52,6 +56,7 @@ void swap(int size, int path[size])
 	path[b] = tmp;
 }
 
+//Baralhar aleatoriamente os arrays
 void shuffle(int *array, size_t n)
 {
 	if (n > 1)
@@ -70,24 +75,23 @@ void shuffle(int *array, size_t n)
 int main(int argc, char *argv[])
 {
 
-	time_t seconds;
-	srand(time(NULL));
-
+	//Processamento de agurmentos
 	if (argc != 3)
 	{
+		printf("Aborting due to lack of arguments\n");
 		return (EXIT_FAILURE);
 	}
 
 	char pathFile[] = "tests/"; //[OBRIGATORIO] - Nome do Ficheiro
 	strcat(pathFile, argv[1]);
+	strcat(pathFile, ".txt");
 	int max_time = atoi(argv[2]); //[OBRIGATORIO] - Tempo maximo de execusão
 
-	struct timespec begin;
+	//Começo do tempo
+	struct timespec begin, timer, final;
 	clock_gettime(CLOCK_REALTIME, &begin);
 
-	int firstRow = 1;
-	int matrix[5][5];
-
+	//Leitura dos ficheiros para a criação de variaveis
 	FILE *file;
 	char string[1000];
 
@@ -98,43 +102,36 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	int size = atoi(fgets(string, 1000, file));
+	int matrix[size][size];
+
 	int line = 0;
 	while (fgets(string, 1000, file) != NULL)
 	{
-		if (firstRow)
-		{
-			size = atoi(string);
-			matrix[size][size];
-			firstRow = 0;
-		}
-		else
-		{
-			trim(string);
-			printf("%s", string);
-			int col = 0;
-			for (int i = 0; string[i] != '\0'; i++)
-			{
-				int z = 0;
-				for (int j = i; string[j] != ' ' && string[j] != '\0'; j++)
-				{
-					z = z + 1;
-				}
-				char number[z];
-				int y = i;
-				for (int x = 0; x < z; x++)
-				{
-					number[x] = string[y];
-					y = y + 1;
-				}
-				matrix[line][col] = atoi(number);
-				col = col + 1;
 
-				i = i + z;
-			}
+		trim(string);
+
+		char s[2] = " ";
+		char *token;
+		int col = 0;
+
+		/* get the first token */
+		token = strtok(string, s);
+
+		/* walk through other tokens */
+		while (token != NULL)
+		{
+			matrix[line][col] = atoi(token);
+			token = strtok(NULL, s);
+			col = col + 1;
 		}
 		line = line + 1;
 	}
 	fclose(file);
+
+	//Declaração de algumas variaveis
+	time_t seconds;
+	srand(time(NULL));
 
 	int path[size];
 	for (int i = 0; i < size; i++)
@@ -160,11 +157,10 @@ int main(int argc, char *argv[])
 		it = it + 1;
 		if (dist < bestDist)
 		{
-			struct timespec timer;
 			clock_gettime(CLOCK_REALTIME, &timer);
 			bestDist = dist;
 			bestIt = it;
-			bestTime = (timer.tv_sec - begin.tv_sec) +
+			bestTime = ((timer.tv_sec - begin.tv_sec) * 1000) +
 					   (double)(timer.tv_nsec - begin.tv_nsec) / (double)MILHAO;
 			for (int z = 0; z < size; z++)
 			{
@@ -172,6 +168,13 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+
+	clock_gettime(CLOCK_REALTIME, &final);
+	double ttime = ((final.tv_sec - begin.tv_sec) * 1000) +
+				   (double)(final.tv_nsec - begin.tv_nsec) / (double)MILHAO;
+
+	//Tabela de Resultados
+	printf("\n------------------Table------------------\n\n");
 	printf("\nDistance: %d\n\n", bestDist);
 	printf("Best Path -");
 	for (int i = 0; i < size; i++)
@@ -182,6 +185,9 @@ int main(int argc, char *argv[])
 
 	printf("\n\nBest Iteration: %ld", bestIt);
 
-	printf("\n\nBest Time: %.2f ms\n\n", bestTime);
+	printf("\n\nTotal Time: %.1f ms", ttime);
+
+	printf("\n\nBest Time: %.1f ms\n\n", bestTime);
+	printf("\n\n-----------------------------------------\n\n");
 	return 0;
 }
