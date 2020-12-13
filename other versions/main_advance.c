@@ -106,10 +106,12 @@ int main(int argc, char *argv[])
 		return (EXIT_FAILURE);
 	}
 
-	char[] path = "tests/" + argv[1]; //[OBRIGATORIO] - Nome do Ficheiro
-	num_proc = atoi(argv[2]);		  //[OBRIGATORIO] - Numero de processos filhos
-	int max_time = atoi(argv[3]);	  //[OBRIGATORIO] - Tempo maximo de execusão
+	char pathFile[] = "tests/"; //[OBRIGATORIO] - Nome do Ficheiro
+	strcat(pathFile, argv[1]);
+	num_proc = atoi(argv[2]);	  //[OBRIGATORIO] - Numero de processos filhos
+	int max_time = atoi(argv[3]); //[OBRIGATORIO] - Tempo maximo de execusão
 
+	struct timespec begin;
 	clock_gettime(CLOCK_REALTIME, &begin);
 
 	printf("%d %d\n\n\n\n", num_proc, max_time);
@@ -120,10 +122,10 @@ int main(int argc, char *argv[])
 	FILE *file;
 	char string[1000];
 
-	file = fopen("ex4.txt", "r");
+	file = fopen(pathFile, "r");
 	if (file == NULL)
 	{
-		printf("Could not open file %s", "ex4.txt");
+		printf("Could not open file %s", pathFile);
 		return 1;
 	}
 

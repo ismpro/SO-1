@@ -78,8 +78,9 @@ int main(int argc, char *argv[])
 		return (EXIT_FAILURE);
 	}
 
-	char[] path = "tests/" + argv[1]; //[OBRIGATORIO] - Nome do Ficheiro
-	int max_time = atoi(argv[2]);	  //[OBRIGATORIO] - Tempo maximo de execusão
+	char pathFile[] = "tests/"; //[OBRIGATORIO] - Nome do Ficheiro
+	strcat(pathFile, argv[1]);
+	int max_time = atoi(argv[2]); //[OBRIGATORIO] - Tempo maximo de execusão
 
 	struct timespec begin;
 	clock_gettime(CLOCK_REALTIME, &begin);
@@ -90,10 +91,10 @@ int main(int argc, char *argv[])
 	FILE *file;
 	char string[1000];
 
-	file = fopen(path, "r");
+	file = fopen(pathFile, "r");
 	if (file == NULL)
 	{
-		printf("Could not open file %s", path);
+		printf("Could not open file %s", pathFile);
 		return 1;
 	}
 
