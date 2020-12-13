@@ -11,7 +11,6 @@
 #define MILHAO 1000000L;
 #define SHUFFLETIMES 3;
 
-
 int *path;
 int *pids;
 int *best_path;
@@ -43,12 +42,34 @@ int distance(int size, int path[size], int matrix[size][size])
 	return dist;
 }
 
-void trim(char* string) {
-  int i, j;
-  for(i=j=0; string[i]; ++i)
-    if(!isspace(string[i]) || (i > 0 && !isspace(string[i-1])))
-      string[j++] = string[i];
-  string[j] = '\0';
+void trim(char *string)
+{
+	int i, j;
+	for (i = j = 0; string[i]; ++i)
+		if (!isspace(string[i]) || (i > 0 && !isspace(string[i - 1])))
+			string[j++] = string[i];
+	string[j] = '\0';
+}
+
+void print_progress(size_t count, size_t max)
+{
+	const char prefix[] = "Progress: [";
+	const char suffix[] = "]";
+	const size_t prefix_length = sizeof(prefix) - 1;
+	const size_t suffix_length = sizeof(suffix) - 1;
+	char *buffer = calloc(max + prefix_length + suffix_length + 1, 1); // +1 for \0
+	size_t i = 0;
+
+	strcpy(buffer, prefix);
+	for (; i < max; ++i)
+	{
+		buffer[prefix_length + i] = i < count ? '#' : ' ';
+	}
+
+	strcpy(&buffer[prefix_length + i], suffix);
+	printf("\b%c[2K\r%s\n", 27, buffer);
+	fflush(stdout);
+	free(buffer);
 }
 
 void swap(int size, int path[size])
@@ -108,69 +129,82 @@ int main(int argc, char *argv[])
 {
 
 	//Processamento de agurmentos
-	int threshold; //[OPCIONAL] -
+	int threshold; //[OPCIONAL] - ???????????
 
-	if (argc <= 3 && argc >= 4)
+	if (argc <= 4 && argc >= 5)
 	{
 		printf("Aborting due to lack of arguments\n");
 		return (EXIT_FAILURE);
 	}
-	if (argc == 3)
+	if (argc == 4)
 	{
 		threshold = 0;
 	}
 	else
 	{
-		threshold = atoi(argv[3]);
+		threshold = atoi(argv[4]);
 	}
-	num_proc = atoi(argv[1]);	  //[OBRIGATORIO] - Numero de processos filhos
-	int max_time = atoi(argv[2]); //[OBRIGATORIO] - Tempo maximo de execusão
+	char[] path = "tests/" + argv[1]; //[OBRIGATORIO] - Nome do Ficheiro
+	num_proc = atoi(argv[2]);		  //[OBRIGATORIO] - Numero de processos filhos
+	int max_time = atoi(argv[3]);	  //[OBRIGATORIO] - Tempo maximo de execusão
+
+	//Começo do tempo
+	struct timespec begin, timer, randNum, final;
+	clock_gettime(CLOCK_REALTIME, &begin);
+	signal(SIGUSR1, parent_callback);
 
 	//Declaração de algumas variaveis
 	hitThreshold = 0;
 
 	int firstRow = 1;
-	int matrix[5][5];	
+	int matrix[5][5];
 
 	FILE *file;
 	char string[1000];
 
-	file = fopen("ex4.txt", "r");
-	if (file == NULL) {
-        	printf("Could not open file %s", "ex4.txt");
-        	return 1;
-    	}
+	file = fopen(path, "r");
+	if (file == NULL)
+	{
+		printf("Could not open file %s", path);
+		return 1;
+	}
 
 	int line = 0;
-    	while (fgets(string, 1000, file) != NULL) {
-		if (firstRow) {
+	while (fgets(string, 1000, file) != NULL)
+	{
+		if (firstRow)
+		{
 			size = atoi(string);
 			matrix[size][size];
 			firstRow = 0;
-		} else {
+		}
+		else
+		{
 			trim(string);
-			printf("%s", string);
 			int col = 0;
-			for (int i = 0; string[i] != '\0'; i++) {
+			for (int i = 0; string[i] != '\0'; i++)
+			{
 				int z = 0;
-				for (int j = i; string[j] != ' ' && string[j] != '\0'; j++) {
+				for (int j = i; string[j] != ' ' && string[j] != '\0'; j++)
+				{
 					z = z + 1;
 				}
 				char number[z];
 				int y = i;
-				for (int x = 0; x < z; x++) {
+				for (int x = 0; x < z; x++)
+				{
 					number[x] = string[y];
 					y = y + 1;
 				}
 				matrix[line][col] = atoi(number);
 				col = col + 1;
-				
+
 				i = i + z;
 			}
 		}
 		line = line + 1;
 	}
-    	fclose(file);
+	fclose(file);
 
 	pids = (int *)malloc(sizeof(int) * num_proc);
 
@@ -179,10 +213,6 @@ int main(int argc, char *argv[])
 	{
 		path[i] = i + 1;
 	}
-
-	struct timespec begin, timer, randNum;
-	clock_gettime(CLOCK_REALTIME, &begin);
-	signal(SIGUSR1, parent_callback);
 
 	//Declaração de semaforos
 	sem_unlink("access_mem");
@@ -238,14 +268,37 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	printf("\rIn progress %d", i / 100);
+
+	printf("\e[?25l");
+
+	//Tempo progresso e tempo total
+	clock_gettime(CLOCK_REALTIME, &final);
+	double time = (final.tv_sec - begin.tv_sec) +
+				  (double)(final.tv_nsec - begin.tv_nsec) / (double)MILHAO;
+
+	double lastTime = 0;
+
 	//Program LOOP
 	while (time(NULL) - begin.tv_sec < max_time)
 	{
+		clock_gettime(CLOCK_REALTIME, &final);
+		time = (final.tv_sec - begin.tv_sec) +
+			   (double)(final.tv_nsec - begin.tv_nsec) / (double)MILHAO;
+
+		if (time != lastTime)
+		{
+			lastTime = time;
+			printf("\n\tIn progress %d\n\t[", time);
+			print_progress(time * 1000, max_time);
+		}
+
 		if (threshold != 0 && *it - *best_it >= threshold)
 		{
 			hitThreshold++;
 			if (hitThreshold <= 3)
 			{
+				system('cls');
 				printf("\n\nKilling process due hiting 3 times the threshold\n\n");
 				break;
 			}
@@ -275,6 +328,8 @@ int main(int argc, char *argv[])
 	printf("\n\nIterations: %ld", *it);
 
 	printf("\n\nBest Iteration: %ld", *best_it);
+
+	printf("\n\nTotal Time: %.2f ms\n\n", time);
 
 	printf("\n\nBest Time: %.2f ms\n\n", *best_time);
 

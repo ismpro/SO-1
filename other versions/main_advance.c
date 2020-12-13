@@ -1,3 +1,10 @@
+/***********************************************************
+ * 
+ * Este ficheiro pode não estar a funcionar como
+ * deve ser
+ * 
+ **********************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -34,12 +41,13 @@ int distance(int size, int path[size], int matrix[size][size])
 	return dist;
 }
 
-void trim(char* string) {
-  int i, j;
-  for(i=j=0; string[i]; ++i)
-    if(!isspace(string[i]) || (i > 0 && !isspace(string[i-1])))
-      string[j++] = string[i];
-  string[j] = '\0';
+void trim(char *string)
+{
+	int i, j;
+	for (i = j = 0; string[i]; ++i)
+		if (!isspace(string[i]) || (i > 0 && !isspace(string[i - 1])))
+			string[j++] = string[i];
+	string[j] = '\0';
 }
 
 void swap(int size, int path[size])
@@ -98,57 +106,64 @@ int main(int argc, char *argv[])
 		return (EXIT_FAILURE);
 	}
 
-	num_proc = atoi(argv[1]);
-	int max_time = atoi(argv[2]);
-	struct timespec begin;
+	char[] path = "tests/" + argv[1]; //[OBRIGATORIO] - Nome do Ficheiro
+	num_proc = atoi(argv[2]);		  //[OBRIGATORIO] - Numero de processos filhos
+	int max_time = atoi(argv[3]);	  //[OBRIGATORIO] - Tempo maximo de execusão
 
 	clock_gettime(CLOCK_REALTIME, &begin);
 
 	printf("%d %d\n\n\n\n", num_proc, max_time);
 
 	int firstRow = 1;
-	int matrix[5][5];	
+	int matrix[5][5];
 
 	FILE *file;
 	char string[1000];
 
 	file = fopen("ex4.txt", "r");
-	if (file == NULL) {
-        	printf("Could not open file %s", "ex4.txt");
-        	return 1;
-    	}
+	if (file == NULL)
+	{
+		printf("Could not open file %s", "ex4.txt");
+		return 1;
+	}
 
 	int line = 0;
-    	while (fgets(string, 1000, file) != NULL) {
-		if (firstRow) {
+	while (fgets(string, 1000, file) != NULL)
+	{
+		if (firstRow)
+		{
 			size = atoi(string);
 			matrix[size][size];
 			firstRow = 0;
-		} else {
+		}
+		else
+		{
 			trim(string);
 			printf("%s", string);
 			int col = 0;
-			for (int i = 0; string[i] != '\0'; i++) {
+			for (int i = 0; string[i] != '\0'; i++)
+			{
 				int z = 0;
-				for (int j = i; string[j] != ' ' && string[j] != '\0'; j++) {
+				for (int j = i; string[j] != ' ' && string[j] != '\0'; j++)
+				{
 					z = z + 1;
 				}
 				char number[z];
 				int y = i;
-				for (int x = 0; x < z; x++) {
+				for (int x = 0; x < z; x++)
+				{
 					number[x] = string[y];
 					y = y + 1;
 				}
 				matrix[line][col] = atoi(number);
 				col = col + 1;
-				
+
 				i = i + z;
 			}
 		}
 		line = line + 1;
 	}
-    	fclose(file);
-
+	fclose(file);
 
 	pids = (int *)malloc(sizeof(int) * num_proc);
 
